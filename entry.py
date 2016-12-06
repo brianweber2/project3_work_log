@@ -1,15 +1,19 @@
-import datetime
-
-
 class Entry(object):
-    """docstring for Entry"""
-    def __init__(self, task_name, time_spent, notes):
-        super(Entry, self).__init__()
-        self.task_name = task_name
-        self.time_spent = time_spent
-        self.notes = notes
-        self.time = datetime.datetime.now()
-        self.date_added = self.time.strftime("%m/%d/%Y")
+    """
+    Attributes of new instance of the Entry class:
+
+    task_name (str): Task name of work
+    time_spent (int): minutes spent on task
+    notes (str): supporting information about task
+    time (datetime): current time
+    date_added (str): datetime formatted as Month/Day/Year
+    """
+    def __init__(self, **kwargs):
+        super(Entry, self, **kwargs).__init__()
+        self.task_name = kwargs.get('task_name')
+        self.time_spent = kwargs.get('time_spent')
+        self.notes = kwargs.get('notes')
+        self.date_added = kwargs.get('date_added')
 
 
     def __str__(self):
