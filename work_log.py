@@ -152,11 +152,11 @@ class WorkLog(object):
         clear_screen()
         dates = self.get_dates_list(matches)
         dates = self.remove_duplicates(dates)
-        print("Here are the dates we have entries for: \n\n")
+        print("Here are the dates we have entries for: \n")
         for date in dates:
             print(date)
         while True:
-            print("Would you like to:\n\n"
+            print("\nWould you like to:\n\n"
                 "[L] - Look up an entry\n"
                 "[S] - Back to the Search Menu\n"
                 "[Q] - Back to the Main Menu\n")
@@ -190,13 +190,14 @@ class WorkLog(object):
                 results.append(match)
         if results:
             clear_screen()
-            self.print_entries(results, "date", user_input)
+            self.display_entries(results)
             clear_screen()
         else:
             input("\n{} is not in the search result. Try again."
                 "".format(user_input))
             clear_screen()
             self.date_lookup(matches)
+
 
     def check_date_input(self, text):
         """For the date range function. Check if input is valid."""
@@ -223,7 +224,7 @@ class WorkLog(object):
             if re.search(r'{}'.format(time), entry['Time Spent (mins)']):
                 matches.append(entry)
         if matches:
-            self.print_entries(matches, "time spent", time)
+            self.display_entries(matches)
         else:
             print("No matches found for {} in Time Spent.".format(time))
             input("\nPress ENTER to continue")
@@ -247,7 +248,7 @@ class WorkLog(object):
                 or re.search(r'{}'.format(pattern), entry['Notes'])):
                 matches.append(entry)
         if matches:
-            self.print_entries(matches, "regular expression", pattern)
+            self.display_entries(matches)
         else:
             print("No matches found for {} in Task Name or Notes"
                 "".format(pattern))
@@ -275,7 +276,7 @@ class WorkLog(object):
                 or re.search(r'{}'.format(pattern), entry['Notes'])):
                 matches.append(entry)
         if matches:
-            self.print_entries(matches, "keyword", user_input)
+            self.display_entries(matches)
         else:
             print("No matches found for {} in Task Name or Notes."
                 "".format(user_input))
@@ -336,7 +337,7 @@ class WorkLog(object):
             if user_input == line['Date']:
                 matches.append(line)
         if matches:
-            self.print_entries(matches, "date", user_input)
+            self.display_entries(matches)
         else:
             print("No matches found for {} in Task Name or Notes."
                 "".format(user_input))
@@ -350,22 +351,67 @@ class WorkLog(object):
             self.search_entries()
 
 
-    def print_entries(self, entries, search_method, user_input):
+    def print_entries(self, index, entries, display=True):
         """Print entries to screen."""
-        clear_screen()
-        print("{}: {}".format(search_method.title(), user_input))
+        if display:
+            print("Showing {} of {} entry/entries."
+                "".format(index + 1, len(entries)))
+
         print('\n' + '=' * 40 + '\n')
-        for entry in entries:
-            print("Task Name: {}\nTime Spent: {} minutes\nNotes: {}\n"
-                "Date: {}".format(
-                    entry['Task Name'],
-                    entry['Time Spent (mins)'],
-                    entry['Notes'],
-                    entry['Date']))
-            input("\nPress ENTER for next entry...")
+        print("Task Name: {}\nTime Spent: {} minutes\nNotes: {}\n"
+            "Date: {}\n".format(
+                entries[index]['Task Name'],
+                entries[index]['Time Spent (mins)'],
+                entries[index]['Notes'],
+                entries[index]['Date']))
+
+
+    def display_nav_options(self, index, entries):
+        """Displays a menu that let's the user page through the entries."""
+        p = "[P] - Previous entry"
+        n = "[N] - Next entry"
+        q = "[Q] - Return to Main Menu"
+        menu = [p, n, q]
+
+        if index == 0:
+            menu.remove(p)
+        elif index == len(entries) - 1:
+            menu.remove(n)
+
+        for option in menu:
+            print(option)
+
+
+    def display_entries(self, entries):
+        """Displays entries to the screen."""
+        index = 0
+
+        while True:
             clear_screen()
-            print("{}: {}".format(search_method.title(), user_input))
-            print('\n' + '=' * 40 + '\n')
+            self.print_entries(index, entries)
+
+            if len(entries) == 1:
+                input("\nPress ENTER to continue to the main menu.")
+                self.menu()
+
+            self.display_nav_options(index, entries)
+
+            user_input = input("\nSelect option from above: ").lower().strip()
+
+            if index == 0 and user_input == 'n':
+                index += 1
+                clear_screen()
+            elif index > 0 and index < len(entries) - 1 and user_input == 'n':
+                index += 1
+                clear_screen()
+            elif index == len(entries) - 1 and user_input == 'p':
+                index -= 1
+                clear_screen()
+            elif user_input == 'q':
+                self.menu()
+            else:
+                input("\n{} is not a valid command! Please try again."
+                    "".format(user_input))
 
 
     def validate_date(self):
@@ -379,25 +425,6 @@ class WorkLog(object):
             self.validate_date()
         else:
             return date
-
-
-    def convert_to_int(self, numbers):
-        """Convert a list of strings to integers."""
-        try:
-            for number in numbers:
-                int(number)
-            return True
-        except ValueError:
-            return False
-
-
-    def check_date_length(self, numbers):
-        """Checks the date's length to be mm/dd/yyyy."""
-        if (len(numbers[0]) == 2 and len(numbers[1]) == 2
-            and len(numbers[2]) == 4):
-            return True
-        else:
-            return False
 
 
     def edit_entry(self, entry):
