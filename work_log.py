@@ -101,7 +101,7 @@ class WorkLog(object):
         clear_screen()
         data = self.read_csv_file(filename)
         for entry in data:
-            if re.search(pattern, ", ".join(entry)):
+            if re.search(pattern, entry[0] + entry[2]):
                 entries.append(entry)
         self.print_entries(entries, "keyword", user_input)
         clear_screen()
