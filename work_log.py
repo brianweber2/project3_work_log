@@ -94,7 +94,22 @@ class WorkLog(object):
         """
         Search for a keyword (str) that is in either the task name or notes.
         """
-        pass
+        entries = []
+        clear_screen()
+        user_input = input("Enter a search term: ")
+        pattern = "\\b" + user_input + "\\b"
+        clear_screen()
+        data = self.read_csv_file(filename)
+        for entry in data:
+            if re.search(pattern, ", ".join(entry)):
+                entries.append(entry)
+        self.print_entries(entries, "keyword", user_input)
+        clear_screen()
+        response = input("Do you want to search something else? Y/[n] ")
+        if response.lower() != 'y':
+            self.menu()
+        else:
+            self.search_entries()
 
 
     def remove_duplicates(self, dates):
@@ -141,26 +156,31 @@ class WorkLog(object):
         user_input = self.validate_date(dates)
         ### Find all and display all entires with the date provided by user ###
         data = self.read_csv_file(filename)
-        entires = []
+        entries = []
         for line in data:
             if user_input in line:
-                entires.append(line)
-        clear_screen()
-        print("Date: {}".format(user_input))
-        print('\n' + '=' * 40 + '\n')
-        for entry in entires:
-            print("Task Name: {}\nTime Spent: {} minutes\nNotes: {}\n"
-                "Date: {}".format(entry[0], entry[1], entry[2], entry[3]))
-            input("\nPress ENTER for next entry...")
-            clear_screen()
-            print("Date: {}".format(user_input))
-            print('\n' + '=' * 40 + '\n')
+                entries.append(line)
+        self.print_entries(entries, "date", user_input)
         clear_screen()
         response = input("Do you want to search something else? Y/[n] ")
         if response.lower() != 'y':
             self.menu()
         else:
             self.search_entries()
+
+
+    def print_entries(self, entries, search_method, user_input):
+        """Print entries to screen."""
+        clear_screen()
+        print("{}: {}".format(search_method.title(), user_input))
+        print('\n' + '=' * 40 + '\n')
+        for entry in entries:
+            print("Task Name: {}\nTime Spent: {} minutes\nNotes: {}\n"
+                "Date: {}".format(entry[0], entry[1], entry[2], entry[3]))
+            input("\nPress ENTER for next entry...")
+            clear_screen()
+            print("{}: {}".format(search_method.title(), user_input))
+            print('\n' + '=' * 40 + '\n')
 
 
     def validate_date(self, dates):
