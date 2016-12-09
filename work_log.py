@@ -66,12 +66,11 @@ class WorkLog(object):
     def search_entries(self):
         """Lookup previous entries."""
         while True:
-            clear_screen()
             user_input = input("Choose from the following search options:\n\n"
                 "[D]ate\n"
                 "[T]ime spent\n"
                 "[K]eyword\n"
-                "[P]attern\n"
+                "[R]egular Expression\n"
                 "[Q]uit and return to the main menu\n\n"
                 )
             if user_input.lower() == 'q':
@@ -82,12 +81,32 @@ class WorkLog(object):
                 pass
             elif user_input.lower() == 'k':
                 self.search_keyword()
-            elif user_input.lower() == 'p':
-                pass
+            elif user_input.lower() == 'r':
+                self.search_regex()
             else:
                 clear_screen()
                 print("{} is not a valid command! Please try again.\n"
                     "".format(user_input))
+
+
+    def search_regex(self):
+        """Search through work log using regular expression."""
+        entries = []
+        clear_screen()
+        user_input = input("Enter a regular expression: ")
+        clear_screen()
+        data = self.read_csv_file(filename)
+        for entry in data:
+            if (re.search(user_input, entry[0])
+                or re.search(user_input, entry[2])):
+                entries.append(entry)
+        self.print_entries(entries, "regular expression", user_input)
+        clear_screen()
+        response = input("Do you want to search something else? Y/[n] ")
+        if response.lower() != 'y':
+            self.menu()
+        else:
+            self.search_entries()
 
 
     def search_keyword(self):
@@ -101,7 +120,7 @@ class WorkLog(object):
         clear_screen()
         data = self.read_csv_file(filename)
         for entry in data:
-            if re.search(pattern, entry[0] + entry[2]):
+            if re.search(pattern, entry[0]) or re.search(pattern, entry[2]):
                 entries.append(entry)
         self.print_entries(entries, "keyword", user_input)
         clear_screen()
@@ -241,6 +260,7 @@ class WorkLog(object):
             elif user_input.lower() == 'a':
                 self.prompt_for_entry()
             elif user_input.lower() == 's':
+                clear_screen()
                 self.search_entries()
             else:
                 clear_screen()
@@ -253,5 +273,5 @@ class WorkLog(object):
         self.menu()
 
 
-
-WorkLog()
+if __name__ == "__main__":
+    WorkLog()
