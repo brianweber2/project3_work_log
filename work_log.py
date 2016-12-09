@@ -18,7 +18,7 @@ import re
 import csv
 import os
 import sys
-import datetime
+from datetime import datetime
 
 from entry import Entry
 
@@ -35,53 +35,81 @@ def clear_screen():
 class WorkLog(object):
     """All methods for the WorkLog"""
 
-    def prompt_for_entry(self):
+
+    def add_new_entry(self, entry):
         """Add a new work log entry."""
-        clear_screen()
-        task_name = input("Enter a task name: ")
+        self.display_temp_entry(entry)
         while True:
-            try:
-                time_spent = int(
-                    input("Enter number of minutes spent working on it: ")
-                )
-                break
-            except ValueError:
-                print("\nNot a valid time entry. Please enter time as a whole"
-                "integer, i.e. 45\n")
-        notes = input("Any additional notes? ")
-        date_added = (datetime.datetime.now()).strftime("%m/%d/%Y")
-        self.add_entry_to_file(task_name, time_spent, notes, date_added)
+            print("\nWould you like to:\n\n"
+                "[S] - Save the entry\n"
+                "[E] - Edit the entry\n"
+                "[D] - Delete the entry")
+            user_input = input("\nPlease select an option: ").lower().strip()
+            if user_input == 's':
+                self.add_entry_to_file(entry)
+                input("\nEntry added! Press ENTER to return to the main menu.")
+                self.menu()
+            elif user_input == 'e':
+                entry = self.edit_entry(entry)
+                self.add_new_entry(entry)
+            elif user_input == 'd':
+                input("\nEntry deleted! Press ENTER to go back to the main menu")
+                self.menu()
+            else:
+                input("\nInvalid entry! See menu for valid options. Press ENTER"
+                    " to continue.")
+
+
+    def display_temp_entry(self, entry):
+        """Print task to user before writing to file."""
         clear_screen()
-        print("Entry added!\n")
+        print("Task Name: {}\nTime Spent: {} minutes\nNotes: {}\n"
+            "Date: {}".format(entry.task_name,
+            entry.time_spent,
+            entry.notes,
+            entry.date))
 
 
-    def add_entry_to_file(self, task_name, time_spent, notes, date_added):
+    def add_entry_to_file(self, entry):
         """Add entry to CSV file."""
+        # Check to see if the file already exists
+        exists = os.path.isfile(filename)
+
         with open(filename, 'a') as csvfile:
-            entrywriter = csv.writer(csvfile, delimiter=',',
-                lineterminator='\n')
-            entrywriter.writerow([task_name, time_spent, notes, date_added])
+            fieldnames = ["Task Name", "Time Spent (mins)", "Notes", "Date"]
+            entrywriter = csv.DictWriter(csvfile, fieldnames=fieldnames,
+             delimiter=',', lineterminator='\n')
+            if not exists:
+                entrywriter.writeheader()
+            entrywriter.writerow({
+                fieldnames[0]: entry.task_name,
+                fieldnames[1]: entry.time_spent,
+                fieldnames[2]: entry.notes,
+                fieldnames[3]: entry.date})
 
 
     def search_entries(self):
         """Lookup previous entries."""
         while True:
             user_input = input("Choose from the following search options:\n\n"
-                "[D]ate\n"
-                "[T]ime spent\n"
-                "[K]eyword\n"
-                "[R]egular Expression\n"
-                "[Q]uit and return to the main menu\n\n"
-                )
-            if user_input.lower() == 'q':
+                "[D] - Search by date\n"
+                "[S] - Search by date range\n"
+                "[T] - Search by time spent\n"
+                "[K] - Search by keyword\n"
+                "[R] - Search by regular Expression\n"
+                "[Q] - Quit and return to the main menu\n\n"
+                ).lower().strip()
+            if user_input == 'q':
                 self.menu()
-            elif user_input.lower() == 'd':
-                self.find_by_date()
-            elif user_input.lower() == 't':
-                pass
-            elif user_input.lower() == 'k':
+            elif user_input == 'd':
+                self.search_by_date()
+            elif user_input == 's':
+                self.search_by_date_range()
+            elif user_input == 't':
+                self.search_by_time()
+            elif user_input == 'k':
                 self.search_keyword()
-            elif user_input.lower() == 'r':
+            elif user_input == 'r':
                 self.search_regex()
             else:
                 clear_screen()
@@ -89,18 +117,141 @@ class WorkLog(object):
                     "".format(user_input))
 
 
+    def search_by_date_range(self):
+        """Search entries between two dates."""
+        clear_screen()
+        start_date = self.check_date_input("starting")
+        end_date = self.check_date_input("ending")
+
+        start_date = datetime.strptime(start_date, "%m/%d/%Y")
+        end_date = datetime.strptime(end_date, "%m/%d/%Y")
+        clear_screen()
+
+        entries = self.read_csv_file(filename)
+        matches = []
+        for entry in entries:
+            entry_date = datetime.strptime(entry['Date'], "%m/%d/%Y")
+            if start_date <= entry_date and end_date >= entry_date:
+                matches.append(entry)
+
+        if matches:
+            self.display_dates(matches)
+        else:
+            print("No matches between {} and {}.".format(start_date, end_date))
+            input("\Press ENTER to continue")
+        clear_screen()
+        response = input("Do you want to search something else? Y/[n] ")
+        if response.lower() != 'y':
+            self.menu()
+        else:
+            self.search_entries()
+
+
+    def display_dates(self, matches):
+        """Display all the dates that matches between the date range."""
+        clear_screen()
+        dates = self.get_dates_list(matches)
+        dates = self.remove_duplicates(dates)
+        print("Here are the dates we have entries for: \n\n")
+        for date in dates:
+            print(date)
+        while True:
+            print("Would you like to:\n\n"
+                "[L] - Look up an entry\n"
+                "[S] - Back to the Search Menu\n"
+                "[Q] - Back to the Main Menu\n")
+            user_input = input("\nSelect one of the options above: ")
+            user_input = user_input.lower().strip()
+            if user_input == 'l':
+                clear_screen()
+                self.date_lookup(matches)
+            elif user_input == 's':
+                clear_screen()
+                self.search_entries()
+            elif user_input == 'q':
+                self.menu()
+            else:
+                clear_screen()
+                print("{} is not a valid command! Please try again.\n"
+                    "".format(user_input))
+
+
+    def date_lookup(self, matches):
+        dates = self.get_dates_list(matches)
+        dates = self.remove_duplicates(dates)
+        print("Here are the dates we have entries for: \n")
+        for date in dates:
+            print(date)
+        user_input = self.validate_date()
+
+        results = []
+        for match in matches:
+            if user_input == match['Date']:
+                results.append(match)
+        if results:
+            clear_screen()
+            self.print_entries(results, "date", user_input)
+            clear_screen()
+        else:
+            input("\n{} is not in the search result. Try again."
+                "".format(user_input))
+            clear_screen()
+            self.date_lookup(matches)
+
+    def check_date_input(self, text):
+        """For the date range function. Check if input is valid."""
+        date = input("What is the {} date to search (MM/DD/YYYY): "
+            "".format(text))
+        try:
+            datetime.strptime(date, "%m/%d/%Y")
+        except ValueError:
+            input("\nNot a valid date entry! Enter the date in the format"
+                " MM/DD/YYYY.\n")
+            clear_screen()
+            return self.check_date_input(text)
+        else:
+            return date
+
+
+    def search_by_time(self):
+        """Search entries based on time spent."""
+        matches = []
+        clear_screen()
+        time = input("Enter time spent to search for: ")
+        entries = self.read_csv_file(filename)
+        for entry in entries:
+            if re.search(r'{}'.format(time), entry['Time Spent (mins)']):
+                matches.append(entry)
+        if matches:
+            self.print_entries(matches, "time spent", time)
+        else:
+            print("No matches found for {} in Time Spent.".format(time))
+            input("\nPress ENTER to continue")
+        clear_screen()
+        response = input("Do you want to search something else? Y/[n] ")
+        if response.lower() != 'y':
+            self.menu()
+        else:
+            self.search_entries()
+
+
     def search_regex(self):
         """Search through work log using regular expression."""
-        entries = []
+        matches = []
         clear_screen()
-        user_input = input("Enter a regular expression: ")
+        pattern = input("Enter a regular expression: ")
         clear_screen()
-        data = self.read_csv_file(filename)
-        for entry in data:
-            if (re.search(user_input, entry[0])
-                or re.search(user_input, entry[2])):
-                entries.append(entry)
-        self.print_entries(entries, "regular expression", user_input)
+        entries = self.read_csv_file(filename)
+        for entry in entries:
+            if (re.search(r'{}'.format(pattern), entry['Task Name'])
+                or re.search(r'{}'.format(pattern), entry['Notes'])):
+                matches.append(entry)
+        if matches:
+            self.print_entries(matches, "regular expression", pattern)
+        else:
+            print("No matches found for {} in Task Name or Notes"
+                "".format(pattern))
+            input("\nPress ENTER to continue")
         clear_screen()
         response = input("Do you want to search something else? Y/[n] ")
         if response.lower() != 'y':
@@ -113,16 +264,22 @@ class WorkLog(object):
         """
         Search for a keyword (str) that is in either the task name or notes.
         """
-        entries = []
+        matches = []
         clear_screen()
         user_input = input("Enter a search term: ")
         pattern = "\\b" + user_input + "\\b"
         clear_screen()
-        data = self.read_csv_file(filename)
-        for entry in data:
-            if re.search(pattern, entry[0]) or re.search(pattern, entry[2]):
-                entries.append(entry)
-        self.print_entries(entries, "keyword", user_input)
+        entries = self.read_csv_file(filename)
+        for entry in entries:
+            if (re.search(r'{}'.format(pattern), entry['Task Name'])
+                or re.search(r'{}'.format(pattern), entry['Notes'])):
+                matches.append(entry)
+        if matches:
+            self.print_entries(matches, "keyword", user_input)
+        else:
+            print("No matches found for {} in Task Name or Notes."
+                "".format(user_input))
+            input("\nPress ENTER to continue")
         clear_screen()
         response = input("Do you want to search something else? Y/[n] ")
         if response.lower() != 'y':
@@ -145,46 +302,51 @@ class WorkLog(object):
     def read_csv_file(self, filename):
         """Read a CSV file and return all data in a list."""
         import csv
-        data = []
         with open(filename, 'r') as f:
-            reader = csv.reader(f, delimiter=',', lineterminator='\n')
+            reader = csv.DictReader(f, delimiter=',', lineterminator='\n')
             rows = list(reader)
-            for row in rows:
-                data.append(row)
-        return data
+        return rows
 
 
-    def find_by_date(self):
+    def get_dates_list(self, entries):
+        """Gets a list of dates for all entries."""
+        dates = []
+        for entry in entries:
+            dates.append(entry['Date'])
+        return dates
+
+
+    def search_by_date(self):
         """Find all entries by date."""
         clear_screen()
-        print("FIND BY DATE")
+        print("Search by date")
         print('\n' + '=' * 40 + '\n')
-        dates = []
         # Find all unique dates and display to user
-        with open(filename, 'r') as csvfile:
-            datereader = csv.reader(csvfile, delimiter=',',
-                lineterminator='\n')
-            rows = list(datereader)
-            for row in rows:
-                dates.append(row[-1])
-        dates = self.remove_duplicates(dates)
+        entries = self.read_csv_file(filename)
+        date_list = self.get_dates_list(entries)
+        date_list = self.remove_duplicates(date_list)
         print("Here are the dates we have entries for: \n")
-        for date in dates:
+        for date in date_list:
             print(date)
         ### Validate date input ###
-        user_input = self.validate_date(dates)
+        user_input = self.validate_date()
         ### Find all and display all entires with the date provided by user ###
-        data = self.read_csv_file(filename)
-        entries = []
-        for line in data:
-            if user_input in line:
-                entries.append(line)
-        self.print_entries(entries, "date", user_input)
+        matches = []
+        for line in entries:
+            if user_input == line['Date']:
+                matches.append(line)
+        if matches:
+            self.print_entries(matches, "date", user_input)
+        else:
+            print("No matches found for {} in Task Name or Notes."
+                "".format(user_input))
+            input("\nPress ENTER to continue")
         clear_screen()
         response = input("Do you want to search something else? Y/[n] ")
-        if response.lower() != 'y':
+        if response.lower().strip() != 'y':
             self.menu()
         else:
+            clear_screen()
             self.search_entries()
 
 
@@ -195,33 +357,28 @@ class WorkLog(object):
         print('\n' + '=' * 40 + '\n')
         for entry in entries:
             print("Task Name: {}\nTime Spent: {} minutes\nNotes: {}\n"
-                "Date: {}".format(entry[0], entry[1], entry[2], entry[3]))
+                "Date: {}".format(
+                    entry['Task Name'],
+                    entry['Time Spent (mins)'],
+                    entry['Notes'],
+                    entry['Date']))
             input("\nPress ENTER for next entry...")
             clear_screen()
             print("{}: {}".format(search_method.title(), user_input))
             print('\n' + '=' * 40 + '\n')
 
 
-    def validate_date(self, dates):
+    def validate_date(self):
         """Validate date input."""
-        # Check that the string can be converted to an integer
-        while True:
-            user_input = input("\nWhich date would you like to view? ")
-            numbers = user_input.split('/')
-            if not self.convert_to_int(numbers):
-                print("\n{} is not a valid date entry. Please enter"
-                " in the format of mm/dd/yyyy. Only numbers!"
-                "".format(user_input))
-            # Check that the input is the correct length
-            elif not self.check_date_length(numbers):
-                print("\n{} is not a valid date entry. Please enter in the"
-                        " format of mm/dd/yyyy.".format(user_input))
-            elif user_input not in dates: # Check if date is in database
-                print("\n{} is not in the work log. Please enter from the "
-                    "following dates: ".format(user_input) + ", ".join(dates))
-            else:
-                break
-        return user_input
+        date = input("\nEnter date of task in the format MM/DD/YYYY: ")
+        try:
+            datetime.strptime(date, "%m/%d/%Y")
+        except ValueError:
+            input("\nNot a valid date entry! Enter the date in the format"
+                " MM/DD/YYYY.\n")
+            self.validate_date()
+        else:
+            return date
 
 
     def convert_to_int(self, numbers):
@@ -243,6 +400,38 @@ class WorkLog(object):
             return False
 
 
+    def edit_entry(self, entry):
+        """Edits an entry either by Task Name, Time Spent, Notes, or Date."""
+        clear_screen()
+        while True:
+            print("Would you like to update the following\n\n"
+                "[N] - Task name\n"
+                "[T] - Task time\n"
+                "[S] - Task notes\n"
+                "[D] - Task date\n")
+            user_input = input("Your choice from above: ").lower().strip()
+            if user_input == 'n':
+                entry.get_task_name()
+                input("\nTask name edited. Press ENTER to continue.")
+                self.add_new_entry(entry)
+            elif user_input == 't':
+                entry.get_time_spent()
+                input("\nTime spent edited. Press ENTER to continue.")
+                self.add_new_entry(entry)
+            elif user_input == 's':
+                entry.get_notes()
+                input("\nNotes edited. Press ENTER to continue.")
+                self.add_new_entry(entry)
+            elif user_input == 'd':
+                entry.get_date()
+                input("\nDate edited. Press ENTER to continue.")
+                self.add_new_entry(entry)
+            else:
+                clear_screen()
+                print("{} is not a valid command! Please try again.\n"
+                    "".format(user_input))
+
+
     def menu(self):
         """Present menu to user."""
         clear_screen()
@@ -250,16 +439,18 @@ class WorkLog(object):
         while True:
             user_input = input(
                 "Please choose from the following options:\n\n"
-                "[A]dd new work entry\n"
-                "[S]earch work entries\n"
-                "[Q]uit Work Log 3.0\n\n"
+                "[A] - Add new work entry\n"
+                "[S] - Search work entries\n"
+                "[Q] - Quit Work Log 3.0\n\n"
             )
-            if user_input.lower() == 'q':
+            if user_input.lower().strip() == 'q':
                 print("Thanks for using Work Log 3.0!")
                 sys.exit()
-            elif user_input.lower() == 'a':
-                self.prompt_for_entry()
-            elif user_input.lower() == 's':
+            elif user_input.lower().strip() == 'a':
+                clear_screen()
+                entry = Entry()
+                self.add_new_entry(entry)
+            elif user_input.lower().strip() == 's':
                 clear_screen()
                 self.search_entries()
             else:
